@@ -1,0 +1,158 @@
+﻿@model MovieClub.Models.Customer
+
+@{
+    ViewBag.Title = Model.Name;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>@Model.Name</h2>
+<p>
+    <ul>
+        <li>Membership Type: @Model.MembershipType.Name</li>
+        @if (Model.DOB.HasValue)
+        {
+            <li>Date of Birth: @Model.DOB.Value.Date.ToString()</li>
+
+        }
+    </ul>
+</p>
+
+<form>
+    <p>
+        <h4>Customer Rentals</h4>
+        @* we need to have a toggle buttton to show/hide open rentals only *@
+
+        <table id="rentals" class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Movie</th>
+                    <th>Rental Date</th>
+                    <th>Return Date</th>
+                    <th>Return</th>@* this is a checkbox*@
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+    </p>
+    <p><button type="submit" id="SubmitRentalsBtn" class="btn btn-primary" disabled>Return Selected Movies</button></p>
+</form>
+@* we need to have a form to submit to the Returns action of the Rentals controller.
+    we will send the customer id along with the id of movies to return
+*@
+@section scripts
+{
+    <script>
+        $(document).ready(function () {
+
+            var options = {
+                weekday: "long", year: "numeric", month: "short",
+                day: "numeric", hour: "2-digit", minute: "2-digit"
+            };
+
+
+            var table = $("#rentals").DataTable({
+
+                ajax: {
+                    url: "/api/rentals/"+@Model.Id,
+                    dataSrc: "rentals"
+                },
+                columns: [
+
+                    {
+                        data: "id",
+                        searchable: false,
+                        sortable: false,
+                        visible: false
+                    },
+
+                    {
+                        data: "movie.name"
+                    },
+
+                    {
+                        data: "dateRented",
+                        render:  function (data) { return (new  Date(data)).toLocaleDateString("en-us", options);  }
+                    },
+                    {
+                        data: "dateReturned",
+                        render:  function (data) { 
+                            if(data !== null) {
+                                return (new  Date(data)).toLocaleDateString("en-us", options)
+                            };
+                            return "";
+                              }
+
+                    },
+                    {
+                        render: function(){ return "<span  class='glyphicon'></span>"; },
+                        sortable: false,
+                        searchable: false
+
+                    }
+
+                ]
+            });
+
+            $('#rentals tbody').on( 'click', 'tr', function () {
+                // need to update this so that id date returned is set then we will not select it
+                // because it is already returned
+
+                var row = table.row( $(this) );
+
+                var dtRet = row.data().dateReturned;
+
+                if (dtRet ==null)
+                {
+                    $(this).toggleClass('selected');
+                    // toggle glyphicon-ok
+                    $(this).find("span.glyphicon").toggleClass('glyphicon-ok');
+
+                }
+
+                console.log(table.rows(['.selected']).data().length > 0 );
+               
+                   
+                $('#SubmitRentalsBtn').prop('disabled', function(i, v) { return table.rows(['.selected']).data().length == 0; });
+
+
+            } );
+
+            $('#SubmitRentalsBtn').on('click', function(){
+                alert(
+                    table.rows('.selected').data().length
+                    );
+
+                var data = table.rows(['.selected']).data().toArray();
+                var json = JSON.stringify( data );
+
+                alert(json);
+
+
+                var dataArr = [];
+                $.each($(data),function(key,value){
+                    dataArr.push(value["id"]); //"name" being the value of your first column.
+                });
+
+                console.log(dataArr);
+
+                $.ajax({
+                    url: "/api/rentals",
+                    method: "put",
+                    dataType: 'json',
+                    data: {name: 'Samer Hanna', rentalIds: dataArr}
+                }).done(function(){ console.log("rentals returned!");}).fail(function(){console.log("error !!!");});
+
+
+              
+            });
+
+
+
+
+        });
+    </script>
+
+}
+
